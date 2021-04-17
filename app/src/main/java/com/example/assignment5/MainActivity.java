@@ -110,19 +110,20 @@ public class MainActivity extends AppCompatActivity {
                         if(res.SSID.equals("note8")) {
                             ap1 = res.level;
                             flag1=true;
-                            s1 += " "+res.level;
+                            //s1 += " "+res.level;
                         }
                         if(res.SSID.equals("maggi")){
                             ap2=res.level;
                             flag2=true;
-                            s1 += " "+res.level;
+                            //s1 += " "+res.level;
                         }
                         if(res.SSID.equals("redmi")){
                             ap3=res.level;
                             flag3=true;
-                            s1 += " "+res.level;
+                            //s1 += " "+res.level;
                         }
                     }
+
                     //Toast.makeText(MainActivity.this,s1,Toast.LENGTH_SHORT).show();
                     //if(flag1 && flag2 && flag3) {
                     if(true) {
