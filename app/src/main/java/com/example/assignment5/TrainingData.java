@@ -2,9 +2,9 @@ package com.example.assignment5;
 
 
 import androidx.room.Ignore;
-        import androidx.room.ColumnInfo;
-        import androidx.room.PrimaryKey;
-        import androidx.room.Entity;
+import androidx.room.ColumnInfo;
+import androidx.room.PrimaryKey;
+import androidx.room.Entity;
 
 @Entity(tableName="trainingdata")
 public class TrainingData {
