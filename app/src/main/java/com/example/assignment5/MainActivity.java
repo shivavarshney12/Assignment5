@@ -1,8 +1,14 @@
 package com.example.assignment5;
 //I took reference from https://stackoverflow.com/questions/53337839/find-the-most-repeated-word-in-a-string
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorManager;
+import android.hardware.SensorEventListener;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
@@ -32,29 +38,40 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Arrays;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private WifiManager wifiManager;
 
     BarChart barChart;
     private List<ScanResult> result;
     private int i=0;
-    TextView textView1;
+    TextView textView1,textView2;
     EditText editText1;
     boolean flag1=false,flag2=false,flag3=false;
     BroadcastReceiver wifiScanReceiver;
     Locations ls;
     float ap1=0,ap2=0,ap3=0;
+    float ax=0,ay=0,az=0,mx=0,my=0,mz=0,gx=0,gy=0,gz=0;
     String s1="Hi";
+    private SensorManager mSensorManager;
+    private Sensor mAcc,magnetic_field,gyroscope;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView1 = (TextView)findViewById(R.id.textView1);
+        textView2 = (TextView)findViewById(R.id.textView2);
         editText1 = (EditText)findViewById(R.id.editText1);
         ls= Locations.getInstance(this);
         wifiManager = (WifiManager)
                 getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        mSensorManager = (SensorManager)
+                getSystemService(Context.SENSOR_SERVICE);
+
+        mAcc = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magnetic_field = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        gyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+
         if(!wifiManager.isWifiEnabled()) {
             Toast.makeText(this, "Wifi is disabled.",Toast.LENGTH_SHORT).show();
             //wifiManager.setWifiEnabled(true);
@@ -62,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
 
         ActivityCompat.requestPermissions(MainActivity.this,
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION }, 1);
-        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+        /*AppExecutors.getInstance().diskIO().execute(new Runnable() {
                                                         @Override
                                                         public void run() {
                                                             ls.trainingDataDao().delete();
@@ -70,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
                                                         }
                                                     }
 
-        );
+        );*/
 
         //BroadcastReceiver wifiScanReceiver = new BroadcastReceiver() {
         wifiScanReceiver = new BroadcastReceiver() {
@@ -164,11 +181,67 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
+
+    @Override
+    public final void onAccuracyChanged(Sensor sensor, int accuracy){
+        //sensor accuracy changes
+    }
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    public final void onSensorChanged(SensorEvent event){
+
+        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            ax = event.values[0];
+            ay = event.values[1];
+            az = event.values[2];
+        }
+        if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            mx = event.values[0];
+            my = event.values[1];
+            mz = event.values[2];
+        }
+        if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+            gx = event.values[0];
+            gy = event.values[1];
+            gz = event.values[2];
+        }
+        String loc= editText1.getText().toString();
+        final ImuTrainingData itd=new ImuTrainingData(ax,ay,az,mx,my,mz,gx,gy,gz,loc);
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            ls.imuTrainingDataDao().insertAll(itd);
+                                                            //Toast.makeText(MainActivity.this,"Sensor data inserted",Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+
+        );
+
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-
-
+        if (mAcc != null) {
+            mSensorManager.registerListener(this, mAcc, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            Toast.makeText(this, "Error: No Accelerometer.", Toast.LENGTH_LONG).show();
+        }
+        if (magnetic_field != null) {
+            mSensorManager.registerListener(this, mAcc, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            Toast.makeText(this, "Error: No Accelerometer.", Toast.LENGTH_LONG).show();
+        }
+        if (gyroscope != null) {
+            mSensorManager.registerListener(this, mAcc, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            Toast.makeText(this, "Error: No Accelerometer.", Toast.LENGTH_LONG).show();
+        }
+    }
+    @Override
+    protected void onPause(){
+        super.onPause();
+        mSensorManager.unregisterListener(this);
     }
     @Override
     protected void onDestroy() {
@@ -176,19 +249,20 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(wifiScanReceiver);
     }
 
-
+    //Scan wifi
     public void button1(View v){
         wifiManager.startScan();
 
-
     }
+    //test location
     public void button2(View v){
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
                                                         @Override
                                                         public void run() {
                                                             List<TrainingData> td1= ls.trainingDataDao().getAll();
                                                             int i=0;
-                                                            double min=10000;double d=0;
+                                                            double min=Double.POSITIVE_INFINITY;
+                                                            double d=0;
                                                             String location="null";
                                                             Map<Double,String> map=new HashMap<Double,String>();
                                                             for( ;i<td1.size();i++) {
@@ -251,6 +325,7 @@ public class MainActivity extends AppCompatActivity {
         );
 
     }
+    //check database
     public void button3(View v){
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
                                                         @Override
@@ -265,6 +340,74 @@ public class MainActivity extends AppCompatActivity {
                                                             runOnUiThread(new Runnable(){
                                                                 @Override
                                                                 public void run(){
+                                                                    Toast.makeText(MainActivity.this,""+datas,Toast.LENGTH_SHORT).show();
+                                                                }
+                                                            });
+
+                                                            //Toast.makeText(MainActivity.this, "data: "+list, Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
+
+        );
+
+    }
+    //test IMU location
+    public void button4(View v){
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            List<ImuTrainingData> td1= ls.imuTrainingDataDao().getAll();
+                                                            int i=0;
+                                                            double min=Double.POSITIVE_INFINITY;
+                                                            double d=0,d1=0,d2=0,d3=0;
+                                                            String location="test";
+
+                                                            for( ;i<td1.size();i++) {
+                                                                d1=(Math.pow(ax-td1.get(i).ax,2)+Math.pow(ay-td1.get(i).ay,2)+Math.pow(az-td1.get(i).az,2));
+                                                                d2=(Math.pow(mx-td1.get(i).mx,2)+Math.pow(my-td1.get(i).my,2)+Math.pow(mz-td1.get(i).mz,2));
+                                                                d3=(Math.pow(gx-td1.get(i).gx,2)+Math.pow(gy-td1.get(i).gy,2)+Math.pow(gz-td1.get(i).gz,2));
+                                                                d=Math.sqrt(d1+d2+d3);
+                                                                if(min>d) {
+                                                                    min=d;
+                                                                    location=td1.get(i).loc;
+                                                                }
+                                                            }
+
+                                                            final String loc1=location;
+                                                            runOnUiThread(new Runnable(){
+                                                                @Override
+                                                                public void run(){
+                                                                    textView2.setText("You are in "+loc1);
+                                                                    textView2.setVisibility(View.VISIBLE);
+                                                                }
+                                                            });
+
+                                                            //Toast.makeText(MainActivity.this, "data: "+list, Toast.LENGTH_LONG).show();
+                                                        }
+                                                    }
+
+        );
+
+    }
+    //check IMU database
+    public void button5(View v){
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            List<ImuTrainingData> td1= ls.imuTrainingDataDao().getAll();
+                                                            int i=0;
+                                                            String data="";
+
+                                                            for( ;i<td1.size();i++) {
+                                                                data += td1.get(i).id +" "+td1.get(i).ax +" "+td1.get(i).ay +" "+td1.get(i).az+" ";
+                                                                data += td1.get(i).mx +" "+td1.get(i).my +" "+td1.get(i).mz+" ";
+                                                                data += td1.get(i).gx +" "+td1.get(i).gy +" "+td1.get(i).gz+" "+td1.get(i).loc + "\n";
+                                                            }
+                                                            final String datas=data;
+                                                            runOnUiThread(new Runnable(){
+                                                                @Override
+                                                                public void run(){
+                                                                    Toast.makeText(MainActivity.this,"Table size:"+td1.size(),Toast.LENGTH_SHORT).show();
                                                                     Toast.makeText(MainActivity.this,""+datas,Toast.LENGTH_SHORT).show();
                                                                 }
                                                             });

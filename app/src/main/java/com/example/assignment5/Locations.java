@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase;
 import android.content.Context;
 import androidx.room.Database;
 
-@Database(entities= {TrainingData.class},exportSchema=true, version=1)
+@Database(entities= {TrainingData.class,ImuTrainingData.class},exportSchema=true, version=2)
 public abstract class Locations extends RoomDatabase {
     private static final String DB_NAME ="allLocations";
     private static Locations instance;
@@ -22,5 +22,6 @@ public abstract class Locations extends RoomDatabase {
     }
 
     public abstract TrainingDataDao trainingDataDao();
+    public abstract ImuTrainingDataDao imuTrainingDataDao();
 
 }
